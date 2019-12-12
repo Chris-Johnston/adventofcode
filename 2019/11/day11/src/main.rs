@@ -8,7 +8,7 @@
 // first will output a value indicating the color
 // to paint the panel the robot is over
 // 0 = black, 1 = white
-// second outputs a value indicating the direction the robot
+// second outputs a value indicating the direction_instruction the robot
 // should turn, 0 = left 90 deg, 1 = right 90 deg
 // after turn, should always move forward exactly one panel, starts facing up
 
@@ -28,6 +28,7 @@ pub struct IntcodeComputer
     inputs: Vec<isize>,
     outputs: Vec<isize>,
     stdin_input: bool,
+    stdout_output: bool,
     halt: bool,
 }
 
@@ -48,7 +49,7 @@ impl IntcodeComputer
         }
     }
 
-    pub fn push_input(&mut self, isize input)
+    pub fn push_input(&mut self, input: isize)
     {
         self.inputs.push(input);
     }
@@ -57,6 +58,7 @@ impl IntcodeComputer
     {
         if self.stdin_input
         {
+            println!("{} INPUT: ", self.instruction_pointer);
             // read input from stdin
             let mut input_text = String::new();
             io::stdin()
@@ -77,16 +79,19 @@ impl IntcodeComputer
 
     pub fn run_single_command(&mut self)
     {
-        let opcode = self.memory[&self.instruction_pointer] % 100;
-        let modes = self.get_parameter_modes(self.memory[&self.instruction_pointer], 4);
+        let instruction = self.memory[&self.instruction_pointer];
+        let opcode = instruction % 100;
+        let modes = IntcodeComputer::get_parameter_modes(instruction, 4);
+
+        // println!("instruction {}", instruction);
 
         match opcode
         {
             1 => {
                 // add
-                let location = self.get_parameter(index + 3, modes[2], self.relative_base, true) as usize;
-                let a = self.get_parameter(index + 1, modes[0], self.relative_base, false);
-                let b = self.get_parameter(index + 2, modes[1], self.relative_base, false);
+                let location = self.get_parameter(self.instruction_pointer + 3, modes[2], self.relative_base, true) as usize;
+                let a = self.get_parameter(self.instruction_pointer + 1, modes[0], self.relative_base, false);
+                let b = self.get_parameter(self.instruction_pointer + 2, modes[1], self.relative_base, false);
                 self.memory.insert(location, a + b);
 
                 // increment index for all parameters
@@ -101,11 +106,12 @@ impl IntcodeComputer
                 self.memory.insert(location, a * b);
                 
                 // increment index for all parameters
-                index += 4;
+                self.instruction_pointer += 4;
             },
             3 => {
                 // store single int from the console input
                 let location = self.get_parameter(self.instruction_pointer + 1, modes[0], self.relative_base, true) as usize;
+                let value = self.get_input();
                 
                 self.memory.insert(location, value);
                 
@@ -115,7 +121,11 @@ impl IntcodeComputer
                 // output
                 let value = self.get_parameter(self.instruction_pointer + 1, modes[0], self.relative_base, false);
                 self.outputs.push(value);
-                println!("OUTPUT: {}", value);
+
+                if self.stdout_output
+                {
+                    println!("OUTPUT: {}", value);
+                }
 
                 self.instruction_pointer += 2;
             },
@@ -193,7 +203,7 @@ impl IntcodeComputer
             _ => {
                 println!("Unknown opcode at index {}.", self.instruction_pointer);
                 self.halt = true;
-            }index
+            }
         }
     }
 
@@ -233,7 +243,7 @@ impl IntcodeComputer
                     return *loc as isize;
                 }
 
-                if values.contains_key(loc)
+                if self.memory.contains_key(loc)
                 {
                     // println!("pos ${} = {}", loc, values[loc]);
                     return self.memory[loc];
@@ -271,7 +281,10 @@ impl IntcodeComputer
     }
 }
 
-
+fn coord_to_index(coord: (isize, isize)) -> usize
+{
+    ((coord.0 + 250) + 500 * (coord.1 + 250)) as usize
+}
 
 fn main()
 {
@@ -283,13 +296,181 @@ fn main()
         inputs: Vec::new(),
         outputs: Vec::new(),
         stdin_input: false,
+        stdout_output: true,
         halt: false,
     };
 
     cpu.load_input_file(input_file);
+
+    // create 500 x 500 empty grid of all black
+    let mut grid = vec![-1; (500 * 500)];
+
+    // first instruction is 0
+    cpu.inputs.push(1);
+    let mut output_index = 0;
+    let mut direction_instruction = 0;
+    let mut paint_instruction = 0;
+    let mut coordinate = (0, 0);
+    let mut facing_direction = 0;
+    // 0 = up, 1 = right, 2 = down, 3 = left
     
     while !cpu.halt
     {
         cpu.run_single_command();
+
+        // println!("len {} index is {}", cpu.outputs.len(), output_index);
+        if cpu.outputs.len() >= output_index + 1
+        {
+            // first is value indicates the color to paint
+            if output_index % 2 == 0
+            {
+                paint_instruction = cpu.outputs[output_index];
+                // println!("paint: {}", paint_instruction);
+                
+                output_index += 1;
+            }
+            // second is the direction
+            else
+            {
+                direction_instruction = cpu.outputs[output_index];
+                // println!("dir: {}", direction_instruction);
+
+                output_index += 1;
+
+                // paint and move the robot
+
+                // color the current cell
+                let index = coord_to_index(coordinate);
+                println!("coordinate {:?}", coordinate);
+                grid[index] = paint_instruction;
+
+                // move the robot
+                // this can be done in a better way
+                match facing_direction
+                {
+                    0 =>
+                    {
+                        // up
+                        match direction_instruction
+                        {
+                            0 =>
+                            {
+                                // turn left, move forward
+                                facing_direction = 3;
+                                coordinate.0 -= 1;
+                            },
+                            1 =>
+                            {
+                                // turn right, move forward
+                                facing_direction = 1;
+                                coordinate.0 += 1;
+                            },
+                            _ => {},
+                        }
+                    },
+                    1 =>
+                    {
+                        // right
+                        match direction_instruction
+                        {
+                            0 =>
+                            {
+                                // turn up, move forward
+                                facing_direction = 0;
+                                coordinate.1 += 1;
+                            },
+                            1 =>
+                            {
+                                // turn down, move forward
+                                facing_direction = 2;
+                                coordinate.1 -= 1;
+                            },
+                            _ => {},
+                        }
+                    },
+                    2 =>
+                    {
+                        // down
+                        match direction_instruction
+                        {
+                            0 =>
+                            {
+                                // turn left, move forward
+                                facing_direction = 1;
+                                coordinate.0 += 1;
+                            },
+                            1 =>
+                            {
+                                // turn right, move forward
+                                facing_direction = 3;
+                                coordinate.0 -= 1;
+                            },
+                            _ => {},
+                        }
+                    },
+                    3 =>
+                    {
+                        // left
+                        match direction_instruction
+                        {
+                            0 =>
+                            {
+                                // turn left, move forward
+                                facing_direction = 2;
+                                coordinate.1 -= 1;
+                            },
+                            1 =>
+                            {
+                                // turn right, move forward
+                                facing_direction = 0;
+                                coordinate.1 += 1;
+                            },
+                            _ => {},
+                        }
+                    },
+                    _ => {},
+                }
+                println!("-> coordinate {:?}", coordinate);
+                // add the current color
+                let index = coord_to_index(coordinate);
+                let mut color = grid[index];
+                if color == -1
+                {
+                    color = 0;
+                }
+                cpu.inputs.push(color);
+            }
+        }
     }
+
+    // get the number of panels painted
+    let mut count = 0;
+    // for x in grid
+    // {
+    //     if x != -1
+    //     {
+    //         count += 1;
+    //     }
+    // }
+
+    for x in -50..50
+    {
+        for y in -50..50
+        {
+            let index = coord_to_index((x, y));
+            let value = grid[index];
+            if value == -1 || value == 0
+            {
+                print!(" ");
+            }
+            else
+            {
+                print!("{}", value);
+            }
+        }
+        println!("");
+    }
+
+
+    println!("count of painted: {}", count);
 }
