@@ -1,16 +1,4 @@
-// day 11
-// robot needs to be able to move on grid of square panels
-// detect current color
-// paint panel black or white
-// 0 - black
-// 1 - white
-
-// first will output a value indicating the color
-// to paint the panel the robot is over
-// 0 = black, 1 = white
-// second outputs a value indicating the direction_instruction the robot
-// should turn, 0 = left 90 deg, 1 = right 90 deg
-// after turn, should always move forward exactly one panel, starts facing up
+// day 13
 
 use std::env;
 use std::fs;
@@ -19,6 +7,8 @@ use std::io;
 use std::collections::VecDeque;
 use std::slice;
 use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::thread::sleep_ms;
 
 pub struct IntcodeComputer
 {
@@ -286,9 +276,15 @@ fn coord_to_index(coord: (isize, isize)) -> usize
     ((coord.0 + 250) + 500 * (coord.1 + 250)) as usize
 }
 
+fn add_tile(map: &mut Vec<isize>, x: isize, y: isize, tile_id: isize)
+{
+    let index = coord_to_index((x, y));
+    map[index] = tile_id;
+}
+
 fn main()
 {
-    let input_file = "/home/chris/Git/adventofcode/2019/11/input.txt";
+    let input_file = "/home/chris/Git/adventofcode/2019/13/input.txt";
     let mut cpu = IntcodeComputer {
         memory: HashMap::new(),
         instruction_pointer: 0,
@@ -302,175 +298,107 @@ fn main()
 
     cpu.load_input_file(input_file);
 
-    // create 500 x 500 empty grid of all black
-    let mut grid = vec![-1; (500 * 500)];
+    // load 2 quarters
+    cpu.memory.insert(0, 2);
 
-    // first instruction is 0
-    cpu.inputs.push(1);
     let mut output_index = 0;
-    let mut direction_instruction = 0;
-    let mut paint_instruction = 0;
-    let mut coordinate = (0, 0);
-    let mut facing_direction = 0;
-    // 0 = up, 1 = right, 2 = down, 3 = left
+    let mut x = 0;
+    let mut y = 0;
+    let mut tile_id = 0;
+
+    let mut map = vec![0; (500 * 500)];
+    let mut ball_x = 0;
+    let mut paddle_x = 0;
+    let mut delay_speed = 0;
+
     while !cpu.halt
     {
         cpu.run_single_command();
 
-        // println!("len {} index is {}", cpu.outputs.len(), output_index);
         if cpu.outputs.len() >= output_index + 1
         {
-            // first is value indicates the color to paint
-            if output_index % 2 == 0
+            match output_index % 3
             {
-                paint_instruction = cpu.outputs[output_index];
-                // println!("paint: {}", paint_instruction);
-                
-                output_index += 1;
-            }
-            // second is the direction
-            else
-            {
-                direction_instruction = cpu.outputs[output_index];
-                // println!("dir: {}", direction_instruction);
-
-                output_index += 1;
-
-                // paint and move the robot
-
-                // color the current cell
-                let index = coord_to_index(coordinate);
-                println!("coordinate {:?}", coordinate);
-                grid[index] = paint_instruction;
-
-                // move the robot
-                // this can be done in a better way
-                match facing_direction
+                0 =>
                 {
-                    0 =>
-                    {
-                        // up
-                        match direction_instruction
-                        {
-                            0 =>
-                            {
-                                // turn left, move forward
-                                facing_direction = 3;
-                                coordinate.0 -= 1;
-                            },
-                            1 =>
-                            {
-                                // turn right, move forward
-                                facing_direction = 1;
-                                coordinate.0 += 1;
-                            },
-                            _ => {},
-                        }
-                    },
-                    1 =>
-                    {
-                        // right
-                        match direction_instruction
-                        {
-                            0 =>
-                            {
-                                // turn up, move forward
-                                facing_direction = 0;
-                                coordinate.1 += 1;
-                            },
-                            1 =>
-                            {
-                                // turn down, move forward
-                                facing_direction = 2;
-                                coordinate.1 -= 1;
-                            },
-                            _ => {},
-                        }
-                    },
-                    2 =>
-                    {
-                        // down
-                        match direction_instruction
-                        {
-                            0 =>
-                            {
-                                // turn left, move forward
-                                facing_direction = 1;
-                                coordinate.0 += 1;
-                            },
-                            1 =>
-                            {
-                                // turn right, move forward
-                                facing_direction = 3;
-                                coordinate.0 -= 1;
-                            },
-                            _ => {},
-                        }
-                    },
-                    3 =>
-                    {
-                        // left
-                        match direction_instruction
-                        {
-                            0 =>
-                            {
-                                // turn left, move forward
-                                facing_direction = 2;
-                                coordinate.1 -= 1;
-                            },
-                            1 =>
-                            {
-                                // turn right, move forward
-                                facing_direction = 0;
-                                coordinate.1 += 1;
-                            },
-                            _ => {},
-                        }
-                    },
-                    _ => {},
-                }
-                println!("-> coordinate {:?}", coordinate);
-                // add the current color
-                let index = coord_to_index(coordinate);
-                let mut color = grid[index];
-                if color == -1
+                    x = cpu.outputs[output_index];
+                    println!("x: {}", x);
+                },
+                1 =>
                 {
-                    color = 0;
-                }
-                cpu.inputs.push(color);
+                    y = cpu.outputs[output_index];
+                    println!("y: {}", y);
+                },
+                2 =>
+                {
+                    tile_id = cpu.outputs[output_index];
+                    println!("tile_id: {}", tile_id);
+
+                    if x == -1 && y == 0
+                    {
+                        // new score to show in the display
+                        println!("score: {}", tile_id);
+                        delay_speed = 20;
+                    }
+                    else
+                    {
+                        // add the tile
+                        add_tile(&mut map, x, y, tile_id);
+                    }
+
+                    // clear screen
+                    print!("{}[2J", 27 as char);
+                    for yi in 0..23
+                    {
+                        for xi in 0..40
+                        {
+                            let index = coord_to_index((xi, yi));
+                            let value = map[index];
+                            match value
+                            {
+                                1 => print!("X"),
+                                2 => print!("o"),
+                                3 =>
+                                {
+                                    print!("=");
+                                    paddle_x = xi;
+                                },
+                                4 => 
+                                {
+                                    print!("B");
+                                    ball_x = xi;
+                                },
+                                _ => print!(" "),
+                            }
+                        }
+                        println!("");
+                    }
+
+                    // add input
+                    cpu.inputs.push(
+                        match ball_x.cmp(&paddle_x)
+                        {
+                            Ordering::Less => -1,
+                            Ordering::Greater => 1,
+                            Ordering::Equal => 0,
+                        }
+                    );
+
+                    sleep_ms(delay_speed);
+                },
+                _ => {},
             }
+            output_index += 1;
         }
     }
 
-    // get the number of panels painted
     let mut count = 0;
-    // for x in grid
-    // {
-    //     if x != -1
-    //     {
-    //         count += 1;
-    //     }
-    // }
-
-    for x in -50..50
+    for x in map
     {
-        for y in -50..50
+        if x == 2
         {
-            let index = coord_to_index((x, y));
-            let value = grid[index];
-            if value == -1 || value == 0
-            {
-                print!(" ");
-            }
-            else
-            {
-                print!("{}", value);
-            }
+            count += 1;
         }
-        println!("");
     }
-
-    // K R Z E A J H B
-
-    println!("count of painted: {}", count);
+    println!("count: {}", count);
 }
