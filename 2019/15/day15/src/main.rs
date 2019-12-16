@@ -669,6 +669,7 @@ fn main()
 
         }
 
+        // 388 correct
         // 389 is too high
 
     // let mut current = start;
