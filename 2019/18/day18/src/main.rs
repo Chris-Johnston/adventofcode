@@ -363,10 +363,15 @@ fn find_shortest(map: &Map) -> Option<Progression>
 
     // get starting position distances
     let mut starting_distances = HashMap::new();
-    bfs_from_point(starting.x, starting.y, map, starting_distances);
+    bfs_from_point(starting.x, starting.y, map, &mut starting_distances);
 
-    println!("distances from starting point {:?}", starting_distances);
+    println!("distances from starting point {:#?}", starting_distances);
+    println!("key distances {:#?}", key_distances);
 
+    // get neighbors of the current point
+    let mut current_distance = starting_distances;
+    
+    // use dijkstra for all accessible    
 
     None
 }
@@ -442,10 +447,19 @@ fn solution()
 
 fn example_one()
 {
-    let map = 
-"#########
-#b.A.@.a#
-#########";
+//     let map = 
+// "#########
+// #b.A.@.a#
+// #########";
+let map =
+"########################
+#...............b.C.D.f#
+#.######################
+#.....@.a.B.c.d.A.e.F.g#
+########################";
+
+    // b a c d f e g
+    // 132
     let map = Map::from_map(map.to_string());
     println!("parsed map: {:?}", map);
     find_shortest(&map);
