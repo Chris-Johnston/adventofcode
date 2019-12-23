@@ -243,6 +243,8 @@ fn bfs_from_point(x: usize, y: usize, map: &Map, key_depths: &mut HashMap<char, 
 fn find_shortest_path(map: &Map) -> Option<Progression>
 {
     None
+
+    // TODO see about re-using find shortest path but instead with cached BFS results
 }
 
 // fn find_shortest_path(map: &Map) -> Option<Progression>
