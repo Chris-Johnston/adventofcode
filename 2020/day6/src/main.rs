@@ -37,7 +37,7 @@ fn main() {
         .expect("no result");
     
     println!("Answer Part 1 {}", answer);
-    // assert!(answer == 42069);
+    assert!(answer == 7110);
 
     // part 2
     let example_solution = solution_part2(EXAMPLE_INPUT)
@@ -50,7 +50,7 @@ fn main() {
         .expect("no result");
     
     println!("Answer Part 2 {}", answer);
-    // assert!(answer == 1355323200);
+    assert!(answer == 3628);
 }
 
 fn solution(input: &str) -> Option<usize>
