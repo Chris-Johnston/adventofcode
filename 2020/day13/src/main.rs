@@ -1,5 +1,6 @@
 use std::fs;
 use gcd::Gcd;
+use std::collections::HashSet;
 
 static INPUT_FILE: &str = "input.txt";
 
@@ -59,8 +60,11 @@ fn main() {
         .expect("no result");
     
     println!("Answer Part 2 {}", answer);
+    //               1615033136751203
     assert!(answer > 100000000000000);
+    assert!(answer < 1615033136751203);
     // assert!(answer == 1355323200);
+    assert!(answer == 554865447501099);
 }
 
 fn solution(input: &str) -> Option<usize>
@@ -117,6 +121,8 @@ fn solution_part2(input: &str) -> Option<usize>
         }
     }
 
+    // sort bus_data by id desc
+    bus_data.sort_by(|b, a| a.0.cmp(&b.0));
     println!("bus data is {:?}", bus_data);
 
     let max = bus_data.iter().map(|(id, _)| id).max().expect("failed to find max");
@@ -184,55 +190,78 @@ fn solution_part2(input: &str) -> Option<usize>
     // a is the time param offset
     // and p is the bus id
 
-    for i in 
+
+    // https://en.wikipedia.org/wiki/Chinese_remainder_theorem#Search_by_sieving
+    // solution belongs to the expression
+    // a1,a1 + n1, a1 + 2n1
+    // step by the largest number firt
+    // until getting a number congruent to 3 mod 4, this is the new x value
+    // and add 5x4 each time
 
 
-    /*
+    let start = 0;
+    let mut step : usize = *max;
 
-    let mut start = 0;
-    if first_line
+    let mut bus_data_idx = 1; // idx into bus data for which step is already accounted for
+
+    let mut factors = HashSet::new();
+    factors.insert(step);
+
+    // brute force, step by max
+    // for x in (start..1615033136751203usize).step_by(step) // step_by(*max) works great
+    let mut x = start;
+    while true // for some reason the step_by wasn't working as I expected, so just do it like this
     {
-        start = 100000000000000usize;
-    }
-    else
-    {
-        start = *max;
-    }
-
-    // brute force
-    for x in (start..usize::MAX).step_by(*max) // step_by(*max) works great
-    {
+        x += step;
+        if x > 1615033136751203usize
+        {
+            break;
+        }
         // skip by the largest number
         // and verify conditions for each
 
-        let mut conditions_met = true;
+        let mut conditions_met = false;
 
-        for (id, time) in &bus_data
-        {
+        // for (id, time) in &bus_data
+        
+            let (id, time) = &bus_data[bus_data_idx];
+            println!("x {} {} finding match for {} {}", x, step, id, time);
+
             // println!("x {} id {} time {}", x, id, time);
             let relative_timestamp = x as isize + (*time as isize - t_for_max_id as isize);
             if relative_timestamp < 0
             {
                 conditions_met = false;
-                break;
+                continue;
             }
             let relative_timestamp = relative_timestamp as usize;
 
             if relative_timestamp % id == 0
             {
                 // condition is met
+                if factors.insert(*id)
+                {
+                    // if not in, multiply the step by the bus id
+                    step *= id;
+                    println!("now step by {}", step);
+                    println!("factors are {:?}", factors);
+
+                    bus_data_idx += 1;
+                }
             }
             else
             {
                 conditions_met = false;
-                break;
+                // break;
+                // do not optimize, maybe could speed this up a bit
             }
-        }
+        
 
-        if conditions_met {
+        if bus_data_idx == bus_data.len() {
+            println!("idx {} {}", bus_data_idx, bus_data.len());
             return Some(x - t_for_max_id);
         }
-    } */
+    }
 
     None
 }
