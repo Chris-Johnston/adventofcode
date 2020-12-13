@@ -208,6 +208,9 @@ fn solution_part2(input: &str) -> Option<usize>
     factors.insert(step);
 
     // brute force, step by max
+    // in hindsight, I am actually pretty happy with how close I was
+    // the big difference is that I had to sort all my keys and only eval the next largest one at a time
+    // and then use that to multiply the current step value to optimize things a bit
     // for x in (start..1615033136751203usize).step_by(step) // step_by(*max) works great
     let mut x = start;
     while true // for some reason the step_by wasn't working as I expected, so just do it like this
