@@ -1,6 +1,7 @@
 #[macro_use] extern crate lazy_static;
 use regex::Regex;
 use std::collections::HashMap;
+use itertools::Itertools;
 
 use std::fs;
 
@@ -161,6 +162,59 @@ fn solution_part2(input: &str) -> Option<usize>
 
             println!("ham {}", ham);
 
+            let mut floaty_bits = Vec::new();
+
+            for bit in 0..36
+            {
+                // if bit is 1 in mask, add 0 and 1 version
+                if 1 << bit & mask > 0
+                {
+                    println!("bit {}", bit);
+                    floaty_bits.push(bit);
+                }
+            }
+
+            let kmax = floaty_bits.clone().len();
+            for k in 0..kmax + 1
+            {
+                for permutation in floaty_bits 
+                    .clone()
+                    .into_iter().permutations(k)
+                {
+                    println!("permutation {:?}", permutation);
+                    // flip those bits
+                    let mut floaty_location = location;
+                    for b in &permutation
+                    {
+                        floaty_location |= 1 << b;
+                    }
+
+                    println!("inserting {:0b} into {:0b}", applied_data, floaty_location);
+
+                    memory.insert(floaty_location, applied_data);
+
+                    let mut remove_mask = 0;
+                    for b in &permutation
+                    {
+                        remove_mask |= 1 << b;
+                    }
+
+                    println!("remove mask {:0b}", remove_mask);
+                    println!("aaa {:037b}", 0b111_11111111_11111111_11111111_11111111 ^ remove_mask);
+                    println!("fff {:037b}", floaty_location);
+                    
+                    floaty_location &= 0b111_11111111_11111111_11111111_11111111 ^ remove_mask;
+
+                    println!("fff {:037b}", floaty_location);
+
+                    println!("inserting {:0b} into {:0b}", applied_data, floaty_location);
+
+
+                    // maybe it has to consider the current value in this as well
+                    memory.insert(floaty_location, applied_data);
+                }
+            }
+
             // brute force it, but just use a better way to do it
             
 
@@ -209,17 +263,20 @@ fn solution_part2(input: &str) -> Option<usize>
     // for each of the X's use this to form the real bitmask
     // and then for the non X's, construct the overlay which will be ORed
 
+    println!("memory {:?}", memory);
+
     // sum all values in memory
-    let mut sum = 0;
-    for (val, weight) in memory.values()
-    {
-        if *val != 0
-        {
-            println!("v, w {} {}", val, weight);
-        }
-        let v = val * 2usize.pow(*weight);
-        sum += v;
-    }
+    //let mut sum = 0;
+    // for (val, weight) in memory.values()
+    // {
+    //     if *val != 0
+    //     {
+    //         println!("v, w {} {}", val, weight);
+    //     }
+    //     let v = val * 2usize.pow(*weight);
+    //     sum += v;
+    // }
+    let sum = memory.values().sum();
 
     Some(sum)
 }
