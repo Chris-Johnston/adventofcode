@@ -54,6 +54,7 @@ fn main() {
     println!("Answer Part 2 {}", answer);
     // assert!(answer == 1355323200);
     assert!(answer < 1591421495707984);
+    assert!(answer < 4407267900946);
 }
 
 fn solution(input: &str) -> Option<usize>
@@ -122,7 +123,148 @@ fn solution(input: &str) -> Option<usize>
     Some(sum)
 }
 
-fn solution_part2(input: &str) -> Option<usize>
+fn solution_part2(input: &str) -> Option<usize> // rework
+{
+    lazy_static! {
+        static ref regex_mem: Regex = Regex::new(r"mem\[(\d+)\] = (\d+)").unwrap();
+    }
+
+    let mut overlay = 0;
+    let mut mask = 0;
+
+    let mut memory = HashMap::new();
+
+    fn insert_memory(memory: &mut HashMap<usize, usize>, overlay: usize, mask: usize, location: usize, applied_data: usize)
+    {
+        // suitable for part 1
+        // memory.insert(location, applied_data);
+        let mut floaty_bits = Vec::new();
+
+        // floaty_bits is all of the bits that flip in the address only
+        for bit in 0..36
+        {
+            if 1 << bit & mask > 0
+            {
+                floaty_bits.push(bit);
+            }
+        }
+
+        println!("floaty bits: {:?}", floaty_bits);
+
+        let kmax = floaty_bits.clone().len();
+        for k in 1..kmax + 1
+        {
+            for permutation in floaty_bits 
+                    .clone()
+                    .into_iter().combinations(k)
+                {
+                    println!("permutation {:?}", permutation);
+
+                    let mut off_mask = 0;
+                    for b in &floaty_bits
+                    {
+                        off_mask |= 1 << b;
+                    }
+                    off_mask ^= 0b111_11111111_11111111_11111111_11111111;
+
+                    let mut floaty_location = 0;
+                    for b in &permutation
+                    {
+                        floaty_location |= 1 << b;
+                    }
+
+                    let modified_location = (location & off_mask | overlay | floaty_location);
+                    // println!("floaty   {:040b}", floaty_location);
+                    // println!("location {:040b}", location);
+                    // println!("overlay  {:040b}", overlay);
+                    // println!("mask     {:040b}", mask);
+                    // println!("modifed  {:040b}", modified_location);
+                    // println!("----\n\n");
+
+                    println!("insert {} into {:010b} {}", applied_data, modified_location, modified_location);
+                    memory.insert(modified_location, applied_data);
+
+                    // each permutation of turning bits on and off
+                    let mut remove_mask = 0;
+                    for b in &permutation
+                    {
+                        remove_mask |= 1 << b;
+                    }
+
+                    let modified_location = (location | overlay) & (0b111_11111111_11111111_11111111_11111111 ^ remove_mask) & off_mask;
+
+                    // println!("remove   {:040b}", remove_mask);
+                    // println!("location {:040b}", location);
+                    // println!("overlay  {:040b}", overlay);
+                    // println!("mask     {:040b}", mask);
+                    // println!("modifed  {:040b}", modified_location);
+                    // println!("----\n\n");
+
+                    memory.insert(modified_location, applied_data);
+                    println!("insert {} into {:010b} {}", applied_data, modified_location, modified_location);
+                }
+        }
+
+
+    };
+
+    for line in input.lines()
+    {
+        if regex_mem.is_match(line)
+        {
+            // mem(e) line
+            let caps = regex_mem.captures(line).unwrap();
+            // println!("caps {:?}", caps);
+            let location = caps.get(1).unwrap().as_str()
+                .parse::<usize>()
+                .expect("failed to parse location");
+            let data = caps.get(2).unwrap().as_str()
+                .parse::<usize>()
+                .expect("failed to parse data");
+
+            // we no longer have to modify the data, oops
+            // let applied_data = (data & mask) | overlay;
+
+            // memory.insert(location, applied_data);
+            insert_memory(&mut memory, overlay, mask, location, data);
+        }
+        else
+        {
+            mask = 0;
+            overlay = 0;
+
+            let mask_text = line.split(' ').nth(2).expect("failed to get mask value");
+
+            for (i, x) in mask_text.chars().enumerate()
+            {
+                let bit = 35 - i;
+                if x == 'X'
+                {
+                    // add another bit to the real mask
+                    mask |= 1 << bit;
+                }
+                else
+                {
+                    // add another bit to the overlap
+                    let x = x.to_digit(10).unwrap() as usize;
+                    overlay |= x << bit;
+                }
+            }
+        }
+    }
+
+    println!("generated bit mask {:0b} and overlay {:0b}", mask, overlay);
+    
+    // for each of the X's use this to form the real bitmask
+    // and then for the non X's, construct the overlay which will be ORed
+
+    // sum all values in memory
+    let sum : usize = memory.values().sum();
+
+    Some(sum)
+}
+
+fn unused_solution_part2(input: &str) -> Option<usize>
 {
     lazy_static! {
         static ref regex_mem: Regex = Regex::new(r"mem\[(\d+)\] = (\d+)").unwrap();
@@ -191,7 +333,13 @@ fn solution_part2(input: &str) -> Option<usize>
 
                     println!("inserting {:0b} into {:0b}", applied_data, floaty_location);
 
-                    memory.insert(floaty_location, applied_data);
+                    let mut current_data = applied_data;
+                    if memory.contains_key(&floaty_location)
+                    {
+                        current_data = applied_data | (memory[&floaty_location] & mask);
+                    }
+
+                    memory.insert(floaty_location, current_data);
 
                     let mut remove_mask = 0;
                     for b in &permutation
@@ -209,9 +357,16 @@ fn solution_part2(input: &str) -> Option<usize>
 
                     println!("inserting {:0b} into {:0b}", applied_data, floaty_location);
 
+                    let mut current_data = applied_data;
+                    if memory.contains_key(&floaty_location)
+                    {
+                        current_data = applied_data | overlay | (memory[&floaty_location] & mask);
+                    }
+
+                    memory.insert(floaty_location, current_data);
 
                     // maybe it has to consider the current value in this as well
-                    memory.insert(floaty_location, applied_data);
+                    // memory.insert(floaty_location, applied_data);
                 }
             }
 

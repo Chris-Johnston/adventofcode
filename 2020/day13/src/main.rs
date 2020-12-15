@@ -230,7 +230,9 @@ fn solution_part2(input: &str) -> Option<usize>
             let (id, time) = &bus_data[bus_data_idx];
             println!("x {} {} finding match for {} {}", x, step, id, time);
 
-            // println!("x {} id {} time {}", x, id, time);
+            println!("x {} id {} time {}", x, id, time);
+            println!("tmax {}", t_for_max_id);
+            println!("relative t {}", *time - t_for_max_id);
             let relative_timestamp = x as isize + (*time as isize - t_for_max_id as isize);
             if relative_timestamp < 0
             {
