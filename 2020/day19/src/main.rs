@@ -1,5 +1,6 @@
 use std::fs;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 
 static INPUT_FILE: &str = "input.txt";
 
@@ -146,6 +147,19 @@ struct ExpressionTreeNode
     children: HashMap<char, ExpressionTreeNode>,
 }
 
+impl Clone for ExpressionTreeNode
+{
+    fn clone(&self) -> ExpressionTreeNode
+    {
+        ExpressionTreeNode
+        {
+            literal: self.literal,
+            valid_end: self.valid_end,
+            children: self.children.clone()
+        }
+    }
+}
+
 impl ExpressionTreeNode
 {
     fn literal(c: char) -> ExpressionTreeNode
@@ -156,6 +170,24 @@ impl ExpressionTreeNode
             valid_end: false,
             children: HashMap::new(),
         }
+    }
+
+    fn deep_clone(&self) -> ExpressionTreeNode
+    {
+        let mut children : HashMap<char, ExpressionTreeNode> = HashMap::new();
+        for (k, v) in self.children.clone()
+        {
+            let cloned_v = v.deep_clone();
+            children.insert(k, cloned_v);
+        }
+
+
+        return ExpressionTreeNode
+        {
+            literal: self.literal,
+            valid_end: self.valid_end,
+            children: children,
+        };
     }
 }
 
@@ -168,7 +200,10 @@ fn build_expression_tree(literal_rules: &HashMap<usize, char>, nested_rules: &Ha
     // a b | b a
     // and then reutnr the hashmap of children for another node
 
-    let mut current_rule = nested_rules.get(&0).unwrap();
+    // let mut current_rule = nested_rules.get(&0).unwrap();
+
+    // this should maintain each of the rules for which we have generated the expression tree
+    // so will start with just the ones which are literals
     let mut treeheads = HashMap::new();
 
     for (&key, &value) in literal_rules
@@ -177,14 +212,141 @@ fn build_expression_tree(literal_rules: &HashMap<usize, char>, nested_rules: &Ha
         treeheads.insert(key, literal_node);
     }
 
-    for sub_rule in current_rule
-    {
-        for part in sub_rule
-        {
+    // this is the stack of the dependent trees that have to be determined next before the current one can be
+    // for example, if key 3 depends on 4, then we will stop creating 3 (not ideal probably), push 3 and push 4
+    // I do not have a way of determining infinite loops but I assume that these will not exist in the dataset
+    // to start, init this with just 0
+    let mut dependency_stack = VecDeque::new();
 
+    dependency_stack.push_front(0);
+
+    while dependency_stack.len() > 0
+    {
+        let key = dependency_stack.pop_front().unwrap();
+
+        let mut current_rule = nested_rules.get(&key).unwrap();
+        for sub_rule in current_rule
+        {
+            for part in sub_rule
+            {
+                // building this very very big tree might get expeeeensive
+                // need to be able to append to the tails
+                
+
+                // in hindsight just had another idea
+            }
         }
     }
 }
+
+
+// this other idea is like the tree idea, but instead of a bunch of nodes, generate lists of all possible
+// permutations of strings
+
+// so "a" | "ba" | aaa
+// expands into 3 strings - a and ba and aaa
+
+fn generate_expressions(literal_rules: &HashMap<usize, char>, nested_rules: &HashMap<usize, Vec<Vec<usize>>>)
+-> std::collections::HashMap<usize, std::vec::Vec<std::string::String>> {
+    let mut treeheads = HashMap::new();
+    for (&key, &value) in literal_rules
+    {
+        let mut literal = Vec::new();
+        // literal.push(value.to_string().as_str());
+        let v = String::from(value);
+        literal.push(v);
+        treeheads.insert(key, literal);
+    }
+
+    // this is the stack of the dependent trees that have to be determined next before the current one can be
+    // for example, if key 3 depends on 4, then we will stop creating 3 (not ideal probably), push 3 and push 4
+    // I do not have a way of determining infinite loops but I assume that these will not exist in the dataset
+    // to start, init this with just 0
+    let mut dependency_stack = VecDeque::new();
+
+    dependency_stack.push_front(0);
+
+    while dependency_stack.len() > 0
+    {
+        let key = dependency_stack.pop_front().unwrap();
+        println!("Checking {}", key);
+
+        let current_rule = &nested_rules[&key];
+        let mut all_defined = true;
+
+        // if already in the treeheads, then skip
+        if treeheads.contains_key(&key)
+        {
+            println!("Skipping {}, already eval'ed", key);
+            continue;
+        }
+
+        let mut current = Vec::new();
+        for sub_rule in current_rule
+        {
+            println!("\tsub rule {:?}", sub_rule);
+            let mut s : Vec<String> = Vec::new();
+            for part in sub_rule
+            {
+                println!("\tpart {:?}", part);
+                // handle possibilities for this rule
+                if treeheads.contains_key(&part)
+                {
+                    let mut combinations = Vec::new();
+
+                    let mut first_pass = s.len() == 0;
+
+                    // the data for this rule exists
+                    // add to s every item in treeheads
+                    for append in &treeheads[&part]
+                    {
+                        // println!("append {}", append);
+                        for si in &s
+                        {
+                            let mut si = String::from(si);
+                            si.push_str(append.as_str());
+                            println!("si: {}", si);
+                            combinations.push(si.clone());
+                        }
+
+                        if first_pass
+                        {
+                            // just append without modification
+                            combinations.push(append.clone());
+                        }
+                    }
+
+                    println!("\tpart {:?} combinations {:?}", part, combinations);
+                    s = combinations;
+                }
+                else
+                {
+                    println!("\tpart {:?} was not defined", part);
+                    // doesn't exist for this rule, put back on the stack
+                    dependency_stack.push_front(key);
+                    dependency_stack.push_front(*part);
+                    all_defined = false;
+                    break;
+                }
+            }
+
+            current.append(&mut s);
+        }
+
+        if all_defined
+        {
+            println!("Set tree {} == {:?}", key, current);
+            treeheads.insert(key, current);
+        }
+        else
+        {
+            println!("tried to get through {} but there was a dependency missing", key);
+        }
+    }
+
+    treeheads
+}
+
 
 fn solution(input: &str) -> Option<isize>
 {
@@ -203,12 +365,20 @@ fn solution(input: &str) -> Option<isize>
     println!("literal rules: {:?}", literal_rules);
     println!("nested rules: {:?}", nested_rules);
 
+    let g = generate_expressions(&literal_rules, &nested_rules);
+    println!("x: {:?}", g);
+
     let mut count = 0;
     for expression in expressions.lines()
     {
-        if eval_rule_number(expression, 0, &literal_rules, &nested_rules)
+        let possible = g.get(&0).unwrap();
+        for x in possible
         {
-            count += 1;
+            if x == expression
+            {
+                count += 1;
+                break;
+            }
         }
     }
 
