@@ -307,7 +307,6 @@ fn generate_expressions(literal_rules: &HashMap<usize, char>, nested_rules: &Has
                             let mut si = String::new();
                             for _ in 0..pairs
                     {
-                        
                             si.push_str(append42);
                     }
                     for _ in 0..pairs
