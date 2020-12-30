@@ -95,6 +95,33 @@ fn get_neighbors_for_coord(x: &isize, y: &isize, z: &isize) -> Vec<(isize, isize
     coordinates
 }
 
+fn print_naiive(active: &HashSet<(isize, isize, isize)>, inactive: &HashSet<(isize, isize, isize)>)
+{
+    for z in -1..1
+    {
+        println!("z = {}", z);
+        for y in -5..5
+        {
+            for x in -5..5
+            {
+                if active.contains(&(x, y, z))
+                {
+                    print!("#");
+                }
+                else if inactive.contains(&(x, y, z))
+                {
+                    print!(".");
+                }
+                else
+                {
+                    print!(" ");
+                }
+            }
+            print!("\n");
+        }
+    }
+}
+
 fn solution(input: &str) -> Option<usize>
 {
     // get the current active cubes
@@ -117,9 +144,10 @@ fn solution(input: &str) -> Option<usize>
         }
     }
 
-    for cycle in 0..6
+    for cycle in 0..2
     {
         println!("cycle {}", cycle);
+        print_naiive(&active_cube_coordinates, &inactive_cube_coordinates);
 
         // each cycle will go into this and is copied
         let mut update_active = HashSet::new();
