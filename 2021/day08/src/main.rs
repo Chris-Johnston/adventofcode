@@ -33,16 +33,22 @@ fn parse_input(input: &str) -> Vec<DisplayInput>
             let scrambled = parts
                 .next()
                 .unwrap()
+                .trim()
                 .split(" ")
+                .map(str::trim)
                 .map(String::from)
                 .collect();
             
             let digits = parts
                 .next()
                 .unwrap()
+                .trim()
                 .split(" ")
+                .map(str::trim)
                 .map(String::from)
                 .collect();
+            
+            println!("digits: {:?}", digits);
 
             DisplayInput {
                 scrambled_digits: scrambled,
@@ -256,7 +262,7 @@ fn part2(input: &[DisplayInput]) -> usize
                 // 2 - c && !f
                 // 3 - c && f
 
-                if (digit.len() == 6)
+                if digit.len() == 6
                 {
                     if !digit.contains(c_char)
                     {
@@ -265,6 +271,7 @@ fn part2(input: &[DisplayInput]) -> usize
 
                     if !digit.contains(d_char)
                     {
+                        println!("digit 0 -- {}", digit);
                         return 0;
                     }
 
@@ -280,7 +287,7 @@ fn part2(input: &[DisplayInput]) -> usize
 
             }
 
-            println!("BAD DIGIT");
+            println!("BAD DIGIT {}", digit);
 
             0
         }
